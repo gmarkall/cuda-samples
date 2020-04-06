@@ -37,7 +37,7 @@ TARGET_ARCH ?= $(shell uname -m)
 # Project folders that contain CUDA samples
 PROJECTS ?= $(shell find Samples -name Makefile)
 
-FILTER_OUT :=
+FILTER_OUT := Samples/cudaNvSci/Makefile
 
 PROJECTS := $(filter-out $(FILTER_OUT),$(PROJECTS))
 
