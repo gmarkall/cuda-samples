@@ -1,5 +1,5 @@
 # Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
-# 
+#
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions
 #  are met:
@@ -11,7 +11,7 @@
 #   * Neither the name of NVIDIA CORPORATION nor the names of its
 #     contributors may be used to endorse or promote products derived
 #     from this software without specific prior written permission.
-# 
+#
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
 #  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 #  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -30,33 +30,34 @@ import numpy as np
 
 NUM_ELEMS = 10000000
 
+
 @cuda.jit(device=True)
 def atomicAggInc(counter):
-  active = cuda.cg.coalesced_threads()
+    active = cuda.cg.coalesced_threads()
 
-  mask = active.ballot(1)
-  # Select the leader
-  leader = cuda.ffs(mask) - 1
+    mask = active.ballot(True)
+    # Select the leader
+    leader = cuda.ffs(mask) - 1
 
-  # Leader does the update
-  if active.thread_rank == leader:
-    res = cuda.atomic.add(counter, cuda.popc(mask))
+    # Leader does the update
+    if active.thread_rank == leader:
+        res = cuda.atomic.add(counter, 0, cuda.popc(mask))
 
-  # Broadcast result
-  res = active.shfl(res, leader)
+    # Broadcast result
+    res = active.shfl(res, leader)
 
-  # Each thread computes its own value
-  return res + cuda.popc(mask & ((1 << active.thread_rank) - 1))
+    # Each thread computes its own value
+    return res + cuda.popc(mask & ((1 << active.thread_rank) - 1))
 
 
 @cuda.jit
 def filter_arr(dst, nres, src, n):
-  tid = cuda.grid(1)
-  step = cuda.gridsize(1)
+    tid = cuda.grid(1)
+    step = cuda.gridsize(1)
 
-  for i in range(tid, n, step):
-      if src[i] > 0:
-          dst[atomicAggInc(nres)] = src[i]
+    for i in range(tid, n, step):
+        if src[i] > 0:
+            dst[atomicAggInc(nres)] = src[i]
 
 
 @njit
@@ -70,12 +71,11 @@ def host_filter_arr(dst, src):
 
     return counter
 
-def main():
 
+def main():
     dev = cuda.devices.get_context().device
     print('Device %s: %s with CC %s.%s' % (dev.id, dev.name.decode('utf-8'),
                                            *dev.compute_capability))
-
 
     data_to_filter = np.random.randint(20, size=NUM_ELEMS)
     dev_filtered_data = np.zeros_like(data_to_filter)
